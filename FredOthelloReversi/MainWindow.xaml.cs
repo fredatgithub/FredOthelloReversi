@@ -46,6 +46,8 @@ namespace FredOthelloReversi
     public MainWindow()
     {
       InitializeComponent();
+      var version = typeof(MainWindow).Assembly.GetName().Version!;
+      Title = $"Othello | Reversi v{version.Major}.{version.Minor}.{version.Build}";
       RestoreWindowBounds();
       BuildBoard();
       AddLogEntry("Démarrage de l'application.");
