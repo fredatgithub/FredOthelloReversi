@@ -4,6 +4,9 @@
         Title="Othello | Reversi" Height="820" Width="1120"
         MinHeight="700" MinWidth="900"
         WindowStartupLocation="CenterScreen"
+        Loaded="Window_Loaded"
+        StateChanged="Window_StateChanged"
+        Closed="Window_Closed"
         Background="#101B19"
         Foreground="#F3F4EC"
         FontFamily="Segoe UI">

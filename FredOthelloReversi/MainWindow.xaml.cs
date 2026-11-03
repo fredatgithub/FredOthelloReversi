@@ -2,6 +2,9 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
+using System.IO;
+using System.Text.Json;
+using IOPath = System.IO.Path;
 
 namespace FredOthelloReversi
 {
@@ -35,12 +38,134 @@ namespace FredOthelloReversi
     private int _gameVersion;
     private bool _gameOver;
     private bool _computerThinking;
+    private bool _restoreMaximized;
 
     public MainWindow()
     {
       InitializeComponent();
+      RestoreWindowBounds();
       BuildBoard();
       StartNewGame();
+    }
+
+    private static string WindowSettingsPath =>
+      IOPath.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "FredOthelloReversi",
+        "window.json");
+
+    private void RestoreWindowBounds()
+    {
+      var settingsPath = WindowSettingsPath;
+      if (!File.Exists(settingsPath))
+        return;
+
+      WindowBounds? bounds;
+      try
+      {
+        bounds = JsonSerializer.Deserialize<WindowBounds>(File.ReadAllText(settingsPath));
+      }
+      catch (JsonException)
+      {
+        MessageBox.Show(
+          "Les dimensions enregistrées de la fenêtre sont illisibles. Les valeurs par défaut seront utilisées.",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+        return;
+      }
+      catch (IOException exception)
+      {
+        MessageBox.Show(
+          $"Impossible de lire les dimensions enregistrées de la fenêtre : {exception.Message}",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+        return;
+      }
+      catch (UnauthorizedAccessException exception)
+      {
+        MessageBox.Show(
+          $"Impossible d'accéder aux dimensions enregistrées de la fenêtre : {exception.Message}",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+        return;
+      }
+
+      if (bounds is null || !IsUsableWindowBounds(bounds))
+        return;
+
+      WindowStartupLocation = WindowStartupLocation.Manual;
+      Left = bounds.Left;
+      Top = bounds.Top;
+      Width = bounds.Width;
+      Height = bounds.Height;
+      _restoreMaximized = bounds.IsMaximized;
+    }
+
+    private bool IsUsableWindowBounds(WindowBounds bounds)
+    {
+      if (!double.IsFinite(bounds.Left) || !double.IsFinite(bounds.Top)
+        || !double.IsFinite(bounds.Width) || !double.IsFinite(bounds.Height)
+        || bounds.Width < MinWidth || bounds.Height < MinHeight)
+        return false;
+
+      var right = bounds.Left + bounds.Width;
+      var bottom = bounds.Top + bounds.Height;
+      var virtualRight = SystemParameters.VirtualScreenLeft + SystemParameters.VirtualScreenWidth;
+      var virtualBottom = SystemParameters.VirtualScreenTop + SystemParameters.VirtualScreenHeight;
+      return double.IsFinite(right) && double.IsFinite(bottom)
+        && bounds.Left < virtualRight - 80
+        && right > SystemParameters.VirtualScreenLeft + 80
+        && bounds.Top < virtualBottom - 30
+        && bounds.Top + 40 > SystemParameters.VirtualScreenTop;
+    }
+
+    private void Window_Loaded(object sender, RoutedEventArgs e)
+    {
+      if (_restoreMaximized)
+        WindowState = WindowState.Maximized;
+    }
+
+    private void Window_StateChanged(object? sender, EventArgs e) => SaveWindowSettings();
+
+    private void Window_Closed(object? sender, EventArgs e) => SaveWindowSettings();
+
+    private void SaveWindowSettings()
+    {
+      var bounds = WindowState == WindowState.Normal
+        ? new Rect(Left, Top, Width, Height)
+        : RestoreBounds;
+      var settings = new WindowBounds(
+        bounds.Left,
+        bounds.Top,
+        bounds.Width,
+        bounds.Height,
+        WindowState == WindowState.Maximized);
+      var settingsPath = WindowSettingsPath;
+
+      try
+      {
+        Directory.CreateDirectory(IOPath.GetDirectoryName(settingsPath)!);
+        File.WriteAllText(settingsPath, JsonSerializer.Serialize(settings));
+      }
+      catch (IOException exception)
+      {
+        MessageBox.Show(
+          $"Impossible d'enregistrer les dimensions de la fenêtre : {exception.Message}",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+      }
+      catch (UnauthorizedAccessException exception)
+      {
+        MessageBox.Show(
+          $"Impossible d'enregistrer les dimensions de la fenêtre : {exception.Message}",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+      }
     }
 
     private void BuildBoard()
@@ -311,5 +436,6 @@ namespace FredOthelloReversi
     }
 
     private sealed record Move(int Row, int Column, List<(int Row, int Column)> Flips);
+    private sealed record WindowBounds(double Left, double Top, double Width, double Height, bool IsMaximized);
   }
 }
