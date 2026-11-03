@@ -233,6 +233,7 @@ namespace FredOthelloReversi
         {
           var button = new Button
           {
+            Style = (Style)FindResource("BoardSquare"),
             Margin = new Thickness(1),
             Padding = new Thickness(0),
             BorderThickness = new Thickness(1),
@@ -269,6 +270,8 @@ namespace FredOthelloReversi
     }
 
     private void NewGame_Click(object sender, RoutedEventArgs e) => StartNewGame();
+
+    private void ShowPossibleMoves_Click(object sender, RoutedEventArgs e) => RefreshBoard();
 
     private async void Square_Click(object sender, RoutedEventArgs e)
     {
@@ -368,7 +371,7 @@ namespace FredOthelloReversi
           {
             content.Children.Add(CreateDisc(_board[row, column]));
           }
-          else if (legalSquares.Contains((row, column)))
+          else if (ShowPossibleMovesCheckBox.IsChecked == true && legalSquares.Contains((row, column)))
           {
             content.Children.Add(new Ellipse
             {
