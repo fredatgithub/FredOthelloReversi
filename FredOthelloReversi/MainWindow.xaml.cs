@@ -1,9 +1,9 @@
+using System.IO;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Shapes;
-using System.IO;
-using System.Text.Json;
 using IOPath = System.IO.Path;
 
 namespace FredOthelloReversi
@@ -61,7 +61,9 @@ namespace FredOthelloReversi
     {
       var settingsPath = WindowSettingsPath;
       if (!File.Exists(settingsPath))
+      {
         return;
+      }
 
       WindowBounds? bounds;
       try
@@ -70,8 +72,7 @@ namespace FredOthelloReversi
       }
       catch (JsonException)
       {
-        MessageBox.Show(
-          "Les dimensions enregistrées de la fenêtre sont illisibles. Les valeurs par défaut seront utilisées.",
+        MessageBox.Show("Les dimensions enregistrées de la fenêtre sont illisibles. Les valeurs par défaut seront utilisées.",
           "Othello | Reversi",
           MessageBoxButton.OK,
           MessageBoxImage.Warning);
@@ -79,8 +80,7 @@ namespace FredOthelloReversi
       }
       catch (IOException exception)
       {
-        MessageBox.Show(
-          $"Impossible de lire les dimensions enregistrées de la fenêtre : {exception.Message}",
+        MessageBox.Show($"Impossible de lire les dimensions enregistrées de la fenêtre : {exception.Message}",
           "Othello | Reversi",
           MessageBoxButton.OK,
           MessageBoxImage.Warning);
@@ -88,8 +88,7 @@ namespace FredOthelloReversi
       }
       catch (UnauthorizedAccessException exception)
       {
-        MessageBox.Show(
-          $"Impossible d'accéder aux dimensions enregistrées de la fenêtre : {exception.Message}",
+        MessageBox.Show($"Impossible d'accéder aux dimensions enregistrées de la fenêtre : {exception.Message}",
           "Othello | Reversi",
           MessageBoxButton.OK,
           MessageBoxImage.Warning);
@@ -97,7 +96,9 @@ namespace FredOthelloReversi
       }
 
       if (bounds is null || !IsUsableWindowBounds(bounds))
+      {
         return;
+      }
 
       WindowStartupLocation = WindowStartupLocation.Manual;
       Left = bounds.Left;
@@ -128,7 +129,9 @@ namespace FredOthelloReversi
     private void Window_Loaded(object sender, RoutedEventArgs e)
     {
       if (_restoreMaximized)
+      {
         WindowState = WindowState.Maximized;
+      }
     }
 
     private void Window_StateChanged(object? sender, EventArgs e) => SaveWindowSettings();
@@ -175,11 +178,12 @@ namespace FredOthelloReversi
     private void ShowLogWriteError(string message)
     {
       if (_logWriteErrorShown)
+      {
         return;
+      }
 
       _logWriteErrorShown = true;
-      MessageBox.Show(
-          $"Impossible d'enregistrer le fichier de log « {_logFilePath} » : {message}",
+      MessageBox.Show($"Impossible d'enregistrer le fichier de log « {_logFilePath} » : {message}",
           "Othello | Reversi",
           MessageBoxButton.OK,
           MessageBoxImage.Warning);
@@ -245,6 +249,7 @@ namespace FredOthelloReversi
             Focusable = false,
             Tag = (row, column)
           };
+
           button.Click += Square_Click;
           Grid.SetRow(button, row);
           Grid.SetColumn(button, column);
@@ -278,12 +283,15 @@ namespace FredOthelloReversi
     private async void Square_Click(object sender, RoutedEventArgs e)
     {
       if (_gameOver || _computerThinking || sender is not Button { Tag: ValueTuple<int, int> position })
+      {
         return;
+      }
 
-      var move = GetLegalMoves(_board, Human)
-        .FirstOrDefault(candidate => candidate.Row == position.Item1 && candidate.Column == position.Item2);
+      var move = GetLegalMoves(_board, Human).FirstOrDefault(candidate => candidate.Row == position.Item1 && candidate.Column == position.Item2);
       if (move is null)
+      {
         return;
+      }
 
       ApplyMove(_board, move, Human);
       _moveCount++;
@@ -314,7 +322,10 @@ namespace FredOthelloReversi
           _currentPlayer = -_currentPlayer;
           RefreshBoard();
           if (_currentPlayer == Human)
+          {
             return;
+          }
+
           continue;
         }
 
@@ -330,7 +341,9 @@ namespace FredOthelloReversi
         RefreshBoard();
         await Task.Delay(450);
         if (gameVersion != _gameVersion || _gameOver)
+        {
           return;
+        }
 
         var computerMove = ChooseComputerMove(legalMoves);
         ApplyMove(_board, computerMove, Computer);
@@ -413,6 +426,7 @@ namespace FredOthelloReversi
         VerticalAlignment = VerticalAlignment.Center,
         IsHitTestVisible = false
       };
+
       if (player == Human)
       {
         disc.Fill = new LinearGradientBrush(Color.FromRgb(52, 59, 56), Color.FromRgb(10, 13, 12), 45);
@@ -423,6 +437,7 @@ namespace FredOthelloReversi
         disc.Fill = new LinearGradientBrush(Color.FromRgb(255, 255, 249), Color.FromRgb(205, 211, 204), 45);
         disc.Stroke = new SolidColorBrush(Color.FromRgb(174, 183, 176));
       }
+
       return disc;
     }
 
@@ -433,10 +448,15 @@ namespace FredOthelloReversi
       foreach (var piece in _board)
       {
         if (piece == Human)
+        {
           human++;
+        }
         else if (piece == Computer)
+        {
           computer++;
+        }
       }
+
       return (human, computer);
     }
 
@@ -448,12 +468,18 @@ namespace FredOthelloReversi
         for (var column = 0; column < BoardSize; column++)
         {
           if (board[row, column] != 0)
+          {
             continue;
+          }
+
           var flips = GetFlips(board, row, column, player);
           if (flips.Count > 0)
+          {
             moves.Add(new Move(row, column, flips));
+          }
         }
       }
+
       return moves;
     }
 
@@ -471,20 +497,25 @@ namespace FredOthelloReversi
           nextRow += rowStep;
           nextColumn += columnStep;
         }
+
         if (line.Count > 0 && IsOnBoard(nextRow, nextColumn) && board[nextRow, nextColumn] == player)
+        {
           flips.AddRange(line);
+        }
       }
+
       return flips;
     }
 
-    private static bool IsOnBoard(int row, int column) =>
-      row >= 0 && row < BoardSize && column >= 0 && column < BoardSize;
+    private static bool IsOnBoard(int row, int column) => row >= 0 && row < BoardSize && column >= 0 && column < BoardSize;
 
     private static void ApplyMove(int[,] board, Move move, int player)
     {
       board[move.Row, move.Column] = player;
       foreach (var (row, column) in move.Flips)
+      {
         board[row, column] = player;
+      }
     }
 
     private static Move ChooseComputerMove(List<Move> moves)
