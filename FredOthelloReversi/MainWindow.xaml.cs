@@ -136,7 +136,7 @@ namespace FredOthelloReversi
       SaveWindowSettings();
       var (humanScore, computerScore) = CountPieces();
       AddLogEntry($"Durée de la session : {DateTime.Now - _sessionStarted:c}.");
-      AddLogEntry($"Fermeture de l'application. Score final : joueur {humanScore}, ordinateur {computerScore}.");
+      AddLogEntry($"Sortie de l'application. Score final : joueur {humanScore}, ordinateur {computerScore}.");
     }
 
     private static string CreateLogFilePath()
