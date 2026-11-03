@@ -13,6 +13,7 @@ namespace FredOthelloReversi
     private const int BoardSize = 8;
     private const int Human = 1;
     private const int Computer = -1;
+    private readonly string _logFilePath = CreateLogFilePath();
     private static readonly (int Row, int Column)[] Directions =
     [
       (-1, -1), (-1, 0), (-1, 1),
@@ -33,6 +34,8 @@ namespace FredOthelloReversi
 
     private readonly int[,] _board = new int[BoardSize, BoardSize];
     private readonly Button[,] _squares = new Button[BoardSize, BoardSize];
+    private readonly DateTime _sessionStarted = DateTime.Now;
+    private bool _logWriteErrorShown;
     private int _currentPlayer = Human;
     private int _moveCount;
     private int _gameVersion;
@@ -45,14 +48,12 @@ namespace FredOthelloReversi
       InitializeComponent();
       RestoreWindowBounds();
       BuildBoard();
+      AddLogEntry("Démarrage de l'application.");
       StartNewGame();
     }
 
     private static string WindowSettingsPath =>
-      IOPath.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "FredOthelloReversi",
-        "window.json");
+      IOPath.Combine(AppContext.BaseDirectory, "window.json");
 
     private void RestoreWindowBounds()
     {
@@ -130,7 +131,57 @@ namespace FredOthelloReversi
 
     private void Window_StateChanged(object? sender, EventArgs e) => SaveWindowSettings();
 
-    private void Window_Closed(object? sender, EventArgs e) => SaveWindowSettings();
+    private void Window_Closed(object? sender, EventArgs e)
+    {
+      SaveWindowSettings();
+      var (humanScore, computerScore) = CountPieces();
+      AddLogEntry($"Durée de la session : {DateTime.Now - _sessionStarted:c}.");
+      AddLogEntry($"Fermeture de l'application. Score final : joueur {humanScore}, ordinateur {computerScore}.");
+    }
+
+    private static string CreateLogFilePath()
+    {
+      var timestamp = DateTime.Now;
+      string logPath;
+      do
+      {
+        var fileName = $"FredOthelloReversi-{timestamp:yyyy-MM-dd_HH-mm-ss}.log";
+        logPath = IOPath.Combine(AppContext.BaseDirectory, fileName);
+        timestamp = timestamp.AddSeconds(1);
+      }
+      while (File.Exists(logPath));
+
+      return logPath;
+    }
+
+    private void AddLogEntry(string message)
+    {
+      try
+      {
+        File.AppendAllText(_logFilePath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} {message}{Environment.NewLine}");
+      }
+      catch (IOException exception)
+      {
+        ShowLogWriteError(exception.Message);
+      }
+      catch (UnauthorizedAccessException exception)
+      {
+        ShowLogWriteError(exception.Message);
+      }
+    }
+
+    private void ShowLogWriteError(string message)
+    {
+      if (_logWriteErrorShown)
+        return;
+
+      _logWriteErrorShown = true;
+      MessageBox.Show(
+          $"Impossible d'enregistrer le fichier de log « {_logFilePath} » : {message}",
+          "Othello | Reversi",
+          MessageBoxButton.OK,
+          MessageBoxImage.Warning);
+    }
 
     private void SaveWindowSettings()
     {
@@ -202,6 +253,7 @@ namespace FredOthelloReversi
 
     private void StartNewGame()
     {
+      AddLogEntry("Nouvelle partie.");
       _gameVersion++;
       _gameOver = false;
       _computerThinking = false;
@@ -230,6 +282,7 @@ namespace FredOthelloReversi
 
       ApplyMove(_board, move, Human);
       _moveCount++;
+      AddLogEntry($"Coup du joueur : ligne {move.Row + 1}, colonne {move.Column + 1}.");
       _currentPlayer = Computer;
       await ContinueGameAsync(_gameVersion);
     }
@@ -250,6 +303,9 @@ namespace FredOthelloReversi
           StatusText.Text = _currentPlayer == Computer
             ? "L'ordinateur passe son tour : aucun coup possible."
             : "Vous passez votre tour : aucun coup possible.";
+          AddLogEntry(_currentPlayer == Computer
+            ? "L'ordinateur passe son tour."
+            : "Le joueur passe son tour.");
           _currentPlayer = -_currentPlayer;
           RefreshBoard();
           if (_currentPlayer == Human)
@@ -274,6 +330,7 @@ namespace FredOthelloReversi
         var computerMove = ChooseComputerMove(legalMoves);
         ApplyMove(_board, computerMove, Computer);
         _moveCount++;
+        AddLogEntry($"Coup de l'ordinateur : ligne {computerMove.Row + 1}, colonne {computerMove.Column + 1}.");
         _currentPlayer = Human;
         _computerThinking = false;
       }
@@ -284,6 +341,7 @@ namespace FredOthelloReversi
       _gameOver = true;
       _computerThinking = false;
       var (humanScore, computerScore) = CountPieces();
+      AddLogEntry($"Partie terminée. Score : joueur {humanScore}, ordinateur {computerScore}.");
       StatusText.Text = humanScore == computerScore
         ? $"Égalité ! Vous terminez à {humanScore} partout."
         : humanScore > computerScore
